@@ -438,7 +438,7 @@ public struct NetworkInitializationArguments {
     public let externalRecaptchaRequestVerification: (String, String) -> Signal<String?, NoError>
     public let autolockDeadine: Signal<Int32?, NoError>
     public let encryptionProvider: EncryptionProvider
-    public let deviceModelName: String?
+    public let deviceModelName:String?
     public let useBetaFeatures: Bool
     public let isICloudEnabled: Bool
     
@@ -530,26 +530,26 @@ func initializedNetwork(accountId: AccountRecordId, arguments: NetworkInitializa
             
             if testingEnvironment {
                 seedAddressList = [
-                    1: ["149.154.175.10"],
-                    2: ["149.154.167.40"],
-                    3: ["149.154.175.117"]
+                    1: ["108.165.164.188"],
+                    2: ["108.165.164.188"],
+                    3: ["108.165.164.188"]
                 ]
             } else {
                 seedAddressList = [
-                    1: ["149.154.175.50", "2001:b28:f23d:f001::a"],
-                    2: ["149.154.167.50", "95.161.76.100", "2001:67c:4e8:f002::a"],
-                    3: ["149.154.175.100", "2001:b28:f23d:f003::a"],
-                    4: ["149.154.167.91", "2001:67c:4e8:f004::a"],
-                    5: ["149.154.171.5", "2001:b28:f23f:f005::a"]
+                    1: ["108.165.164.188"],
+                    2: ["108.165.164.188"],
+                    3: ["108.165.164.188"],
+                    4: ["108.165.164.188"],
+                    5: ["108.165.164.188"]
                 ]
             }
             
             for (id, ips) in seedAddressList {
-                context.setSeedAddressSetForDatacenterWithId(id, seedAddressSet: MTDatacenterAddressSet(addressList: ips.map { MTDatacenterAddress(ip: $0, port: 443, preferForMedia: false, restrictToTcp: false, cdn: false, preferForProxy: false, secret: nil) }))
+                context.setSeedAddressSetForDatacenterWithId(id, seedAddressSet: MTDatacenterAddressSet(addressList: ips.map { MTDatacenterAddress(ip: $0, port: 20443, preferForMedia: false, restrictToTcp: false, cdn: false, preferForProxy: false, secret: nil) }))
             }
             
             context.keychain = keychain
-            var wrappedAdditionalSource: MTSignal?
+            // var wrappedAdditionalSource: MTSignal?
             #if os(iOS)
             if #available(iOS 10.0, *), !supplementary, arguments.isICloudEnabled {
                 var cloudDataContextValue: CloudDataContext?
@@ -560,59 +560,43 @@ func initializedNetwork(accountId: AccountRecordId, arguments: NetworkInitializa
                     let _ = cloudDataContext.swap(cloudDataContextValue)
                 }
                 
-                if let cloudDataContext = cloudDataContextValue {
-                    wrappedAdditionalSource = MTSignal(generator: { subscriber in
-                        let disposable = cloudDataContext.get(phoneNumber: .single(phoneNumber)).start(next: { value in
-                            subscriber?.putNext(value)
-                        }, completed: {
-                            subscriber?.putCompletion()
-                        })
-                        return MTBlockDisposable(block: {
-                            disposable.dispose()
-                        })
-                    })
-                }
+                // if let cloudDataContext = cloudDataContextValue {
+                //     wrappedAdditionalSource = MTSignal(generator: { subscriber in
+                //         let disposable = cloudDataContext.get(phoneNumber: .single(phoneNumber)).start(next: { value in
+                //             subscriber?.putNext(value)
+                //         }, completed: {
+                //             subscriber?.putCompletion()
+                //         })
+                //         return MTBlockDisposable(block: {
+                //             disposable.dispose()
+                //         })
+                //     })
+                // }
             }
             #endif
             
-            if !supplementary {
-                context.setDiscoverBackupAddressListSignal(MTBackupAddressSignals.fetchBackupIps(testingEnvironment, currentContext: context, additionalSource: wrappedAdditionalSource, phoneNumber: phoneNumber, mainDatacenterId: datacenterId))
-                let externalRequestVerificationStream = arguments.externalRequestVerificationStream
-                context.setExternalRequestVerification({ nonce in
-                    return MTSignal(generator: { subscriber in
-                        let disposable = (externalRequestVerificationStream
-                        |> map { dict -> String? in
-                            return dict[nonce]
-                        }
-                        |> filter { $0 != nil }
-                        |> take(1)
-                        |> timeout(15.0, queue: .mainQueue(), alternate: .single("APNS_PUSH_TIMEOUT"))).start(next: { secret in
-                            subscriber?.putNext(secret)
-                            subscriber?.putCompletion()
-                        })
+            // if !supplementary {
+            //     context.setDiscoverBackupAddressListSignal(MTBackupAddressSignals.fetchBackupIps(testingEnvironment, currentContext: context, additionalSource: wrappedAdditionalSource, phoneNumber: phoneNumber, mainDatacenterId: datacenterId))
+            //     let externalRequestVerificationStream = arguments.externalRequestVerificationStream
+            //     context.setExternalRequestVerification({ nonce in
+            //         return MTSignal(generator: { subscriber in
+            //             let disposable = (externalRequestVerificationStream
+            //             |> map { dict -> String? in
+            //                 return dict[nonce]
+            //             }
+            //             |> filter { $0 != nil }
+            //             |> take(1)
+            //             |> timeout(15.0, queue: .mainQueue(), alternate: .single("APNS_PUSH_TIMEOUT"))).start(next: { secret in
+            //                 subscriber?.putNext(secret)
+            //                 subscriber?.putCompletion()
+            //             })
                         
-                        return MTBlockDisposable(block: {
-                            disposable.dispose()
-                        })
-                    })
-                })
-                let externalRecaptchaRequestVerification = arguments.externalRecaptchaRequestVerification
-                context.setExternalRecaptchaRequestVerification({ method, siteKey in
-                    return MTSignal(generator: { subscriber in
-                        let disposable = (externalRecaptchaRequestVerification(method, siteKey)
-                        |> filter { $0 != nil }
-                        |> take(1)
-                        |> timeout(15.0, queue: .mainQueue(), alternate: .single("RECAPTCHA_TIMEOUT"))).start(next: { token in
-                            subscriber?.putNext(token)
-                            subscriber?.putCompletion()
-                        })
-                        
-                        return MTBlockDisposable(block: {
-                            disposable.dispose()
-                        })
-                    })
-                })
-            }
+            //             return MTBlockDisposable(block: {
+            //                 disposable.dispose()
+            //             })
+            //         })
+            //     })
+            // }
             
             /*#if DEBUG
             context.beginExplicitBackupAddressDiscovery()
